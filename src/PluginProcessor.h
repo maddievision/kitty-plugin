@@ -1,6 +1,31 @@
+/* Copyright 2026 Maddie Lim
+ *
+ * s4plugin is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * s4plugin is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with s4plugin.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
+#include <cstdint>
 #include <juce_audio_processors/juce_audio_processors.h>
+
+extern "C" {
+    #include <mgba-util/vfs.h>
+    #include <mgba/core/core.h>
+    #include <mgba-util/audio-resampler.h>
+    #include <mgba-util/audio-buffer.h>
+    #include <mgba/core/log.h>
+}
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -13,7 +38,7 @@ public:
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
-
+    
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -42,7 +67,14 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    mCore *getCore();
 private:
+    uint32_t midiptr{};
+    uint32_t midiptrlimit{};
+    mCore *core;
+    mAVStream stream{};
+    mAudioBuffer maBuffer;
+    mAudioResampler maResampler;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
 };

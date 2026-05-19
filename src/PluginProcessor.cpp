@@ -1,5 +1,25 @@
+/* Copyright 2026 Maddie Lim
+ *
+ * s4plugin is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * s4plugin is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with s4plugin.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "BinaryData.h"
+
+const uint32_t s4aMidiInputAddr = 0x3007000;
+const uint32_t s4aMidiInputSize = 0x900;
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -12,6 +32,30 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                      #endif
                        )
 {
+    midiptr = s4aMidiInputAddr;
+    midiptrlimit = midiptr + s4aMidiInputSize - 6;
+
+    VFile *vf = VFileFromConstMemory(BinaryData::rom_gba, BinaryData::rom_gbaSize);
+    core = mCoreFindVF(vf);
+    core->init(core);
+    core->setAVStream(core, &stream);
+    mCoreInitConfig(core, NULL);
+    
+    mCoreOptions opts = {
+      .useBios = false,
+      .skipBios = true,
+      .volume = 0x100,
+      .sampleRate = 32768,
+    };
+    core->setAudioBufferSize(core, 2048);
+    mAudioBuffer* mbuf = core->getAudioBuffer(core);  
+    mAudioBufferInit(&maBuffer, 2048, 2);
+    mAudioResamplerInit(&maResampler, mINTERPOLATOR_SINC);
+    mAudioResamplerSetSource(&maResampler, mbuf, 131072, true);
+    mAudioResamplerSetDestination(&maResampler, &maBuffer, 44100);
+    mCoreConfigLoadDefaults(&core->config, &opts);
+    core->loadROM(core, vf);
+    core->reset(core);
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
@@ -88,7 +132,12 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
-    juce::ignoreUnused (sampleRate, samplesPerBlock);
+//     juce::ignoreUnused (sampleRate, samplesPerBlock);
+// #ifdef ENABLE_GBA
+//   core->setAudioBufferSize(core, samplesPerBlock);
+// #endif
+    core->setAudioBufferSize(core, samplesPerBlock / 3);
+    mAudioResamplerSetDestination(&maResampler, &maBuffer, sampleRate);
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -107,8 +156,7 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
     // In this template code we only support mono or stereo.
     // Some plugin hosts, such as certain GarageBand versions, will only
     // load plugins that support stereo bus layouts.
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
     // This checks if the input layout matches the output layout
@@ -124,32 +172,101 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
+    // TODO: realtime safety
+    // we're touching core in realtime thread and main thread.. which is not great
+    int16_t buf[16384];
     juce::ignoreUnused (midiMessages);
 
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
-        juce::ignoreUnused (channelData);
-        // ..do something to the data...
+    size_t bufSize = static_cast<size_t>(buffer.getNumSamples());
+    size_t remaining = bufSize;
+    
+    auto* lptr = buffer.getWritePointer(0);
+    auto* rptr = buffer.getWritePointer(1);
+    size_t pos = 0;    
+    uint8_t run = 0;
+
+    for (const auto &msg : midiMessages) {
+      if (midiptr > midiptrlimit) {
+        break;
+      }
+      auto mmsg = msg.getMessage();
+      if (mmsg.isNoteOn()) {
+        uint8_t status = 0x90 + mmsg.getChannel() - 1;
+        if (status != run) {
+          core->rawWrite8(core, midiptr++, 0, status);
+          run = status;
+        }
+        core->rawWrite8(core, midiptr++, 0, mmsg.getNoteNumber());
+        core->rawWrite8(core, midiptr++, 0, mmsg.getVelocity());
+      } else if (mmsg.isNoteOff()) {
+        uint8_t status = 0x80 + mmsg.getChannel() - 1;
+        if (status != run) {
+          core->rawWrite8(core, midiptr++, 0, status);
+          run = status;
+        }
+        core->rawWrite8(core, midiptr++, 0, mmsg.getNoteNumber());
+        core->rawWrite8(core, midiptr++, 0, mmsg.getVelocity());
+      } else if (mmsg.isProgramChange()) {
+        uint8_t status = 0xC0 + mmsg.getChannel() - 1;
+        if (status != run) {
+          core->rawWrite8(core, midiptr++, 0, status);
+          run = status;
+        }
+        core->rawWrite8(core, midiptr++, 0, mmsg.getProgramChangeNumber());
+      } else if (mmsg.isController()) {
+        if (mmsg.getControllerNumber() == 119) {
+          // fake program change
+          uint8_t status = 0xC0 + mmsg.getChannel() - 1;
+          if (status != run) {
+            core->rawWrite8(core, midiptr++, 0, status);
+            run = status;
+          }
+          core->rawWrite8(core, midiptr++, 0, mmsg.getControllerValue());          
+        } else {
+          uint8_t status = 0xB0 + mmsg.getChannel() - 1;
+          if (status != run) {
+            core->rawWrite8(core, midiptr++, 0, status);
+            run = status;
+          }
+          core->rawWrite8(core, midiptr++, 0, mmsg.getControllerNumber());
+          core->rawWrite8(core, midiptr++, 0, mmsg.getControllerValue());
+        }
+      } else if (mmsg.isPitchWheel()) {
+        uint8_t status = 0xE0 + mmsg.getChannel() - 1;
+        if (status != run) {
+          core->rawWrite8(core, midiptr++, 0, status);
+          run = status;
+        }
+        uint16_t wheel = mmsg.getPitchWheelValue();
+        core->rawWrite8(core, midiptr++, 0, wheel & 0x7F);
+        core->rawWrite8(core, midiptr++, 0, wheel >> 7);
+      }
+    }
+    
+
+    while (remaining) {
+
+    while (!mAudioBufferAvailable(&maBuffer)) {
+      core->rawWrite8(core, midiptr++, 0, 0xFF);
+      core->rawWrite8(core, midiptr++, 0, 0x2F);
+      core->rawWrite8(core, midiptr++, 0, 0);
+      core->runFrame(core);
+      midiptr = s4aMidiInputAddr;
+      mAudioResamplerProcess(&maResampler);
+    }
+    
+      size_t processed = mAudioBufferRead(&maBuffer, buf, remaining);
+      if (processed) {
+        for (size_t i = 0; i < processed; ++i) {
+          lptr[pos] = buf[i * 2] / 32768.0f;
+          rptr[pos] = buf[i * 2 + 1] / 32768.0f;
+          pos++;
+        }
+        remaining -= processed;
+      } 
     }
 }
 
@@ -185,4 +302,9 @@ void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeI
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new AudioPluginAudioProcessor();
+}
+
+mCore* AudioPluginAudioProcessor::getCore()
+{
+    return core;
 }
