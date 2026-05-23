@@ -14,6 +14,10 @@ juce_add_plugin(${PROJECT_NAME}
     FORMATS AU VST3 Standalone
     PRODUCT_NAME ${PROJECT_NAME})
 
+clap_juce_extensions_plugin(TARGET ${PROJECT_NAME}
+    CLAP_ID "art.rosemade.s4plugin"
+    CLAP_FEATURES instrument)
+
 # juce_generate_juce_header(${PROJECT_NAME})
 
 target_include_directories(

@@ -1,3 +1,11 @@
 [submodule "modules/JUCE"]
 	path = modules/JUCE
 	url = https://github.com/juce-framework/JUCE.git
+[submodule "lib/clap-juce-extensions"]
+	path = lib/clap-juce-extensions
+	url = https://github.com/free-audio/clap-juce-extensions.git
+	branch = main
+[submodule "src/vendor/mgba"]
+	path = src/vendor/mgba
+	url = https://github.com/mgba-emu/mgba.git
+	branch = master
