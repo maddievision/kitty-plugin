@@ -42,10 +42,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     mCoreInitConfig(core, NULL);
     
     mCoreOptions opts = {
-      .useBios = false,
       .skipBios = true,
-      .volume = 0x100,
+      .useBios = false,
       .sampleRate = 32768,
+      .volume = 0x100,
     };
     core->setAudioBufferSize(core, 2048);
     mAudioBuffer* mbuf = core->getAudioBuffer(core);  

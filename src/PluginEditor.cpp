@@ -41,29 +41,32 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colours::white);
     g.setFont (15.0f);
 
-    auto core = processorRef.getCore();
-    uint32_t sndArea = 0x3000144;
-    
-    uint32_t vceArea = sndArea + 0x50;
-    uint32_t cgbArea = sndArea + 0x14B0;    
+    auto core = processorRef.getCore();    
+
+    const size_t vceCount = 32;
+    const uint32_t roseMask = 0x65736F00;
+    const uint32_t sndArea = 0x3000144;    
+    const uint32_t vceArea = sndArea + 0x50;
+    const uint32_t cgbArea = sndArea + 0x14B0; 
+               
     uint32_t rose = core->rawRead32(core, sndArea, 0);
-    bool roseMatch = (rose & 0xFFFFFF00) == 0x65736F00; //0x65736F52;
+    bool roseMatch = (rose & 0xFFFFFF00) == roseMask; //0x65736F52;
     if (roseMatch) {
         int totalVoices = 0;
         int totalCgb = 0;
-        for (int i = 0; i < 32; ++i) {
+        for (uint32_t i = 0; i < 32; ++i) {
             uint32_t vceptr = vceArea + i * 0x40;
             if (core->rawRead8(core, vceptr, 0)) {
                 totalVoices++;
             }
         }
-        for (int i = 0; i < 4; ++i) {
+        for (uint32_t i = 0; i < 4; ++i) {
             uint32_t vceptr = cgbArea + i * 0x40;
             if (core->rawRead8(core, vceptr, 0)) {
                 totalCgb++;
             }
         }
-        std::string status = std::format("s4a ready!\nVoices: {} / 32\nCGB: {} / 4", totalVoices, totalCgb);
+        std::string status = std::format("s4a ready!\nVoices: {} / {}\nCGB: {} / 4", totalVoices, vceCount, totalCgb);
         g.drawFittedText (status.c_str(), getLocalBounds(), juce::Justification::centred, 3);
     } else {
         g.drawFittedText ("s4a initialising...", getLocalBounds(), juce::Justification::centred, 1);        
