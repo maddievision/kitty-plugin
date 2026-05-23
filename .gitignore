@@ -4,3 +4,5 @@ build/
 compile_commands.json
 .jumake
 scratch/
+*.elf
+gba/plugin-bridge.gba

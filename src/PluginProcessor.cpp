@@ -35,7 +35,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     midiptr = s4aMidiInputAddr;
     midiptrlimit = midiptr + s4aMidiInputSize - 6;
 
-    VFile *vf = VFileFromConstMemory(BinaryData::rom_gba, BinaryData::rom_gbaSize);
+    VFile *vf = VFileFromConstMemory(BinaryData::pluginbridge_gba, BinaryData::pluginbridge_gbaSize);
     core = mCoreFindVF(vf);
     core->init(core);
     core->setAVStream(core, &stream);

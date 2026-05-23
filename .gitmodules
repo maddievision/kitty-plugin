@@ -9,3 +9,7 @@
 	path = src/vendor/mgba
 	url = https://github.com/mgba-emu/mgba.git
 	branch = master
+[submodule "gba/lib/kitty"]
+	path = gba/lib/kitty
+	url = https://codeberg.org/roses/kitty.git
+	branch = main

@@ -30,7 +30,7 @@ set(LIBMGBA_ONLY ON CACHE BOOL "libmgba only")
 add_subdirectory(vendor/mgba)
 
 juce_add_binary_data(BinaryData SOURCES
-    data/rom.gba
+    data/plugin-bridge.gba
 )
 
 target_sources(${PROJECT_NAME}
