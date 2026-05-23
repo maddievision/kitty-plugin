@@ -13,7 +13,3 @@
 	path = gba/lib/kitty
 	url = https://codeberg.org/roses/kitty.git
 	branch = main
-[submodule "src/vendor/visage"]
-	path = src/vendor/visage
-	url = https://github.com/VitalAudio/visage.git
-	branch = main

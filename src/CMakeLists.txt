@@ -27,12 +27,10 @@ target_include_directories(
     ${PROJECT_NAME}
     PRIVATE
     vendor/mgba
-    vendor/visage
 )
 
 set(LIBMGBA_ONLY ON CACHE BOOL "libmgba only")
 add_subdirectory(vendor/mgba)
-add_subdirectory(vendor/visage)
 
 juce_add_binary_data(BinaryData SOURCES
     data/plugin-bridge.gba
@@ -67,7 +65,6 @@ target_link_libraries(${PROJECT_NAME}
         BinaryData
         juce::juce_audio_utils
         mgba
-        visage
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
