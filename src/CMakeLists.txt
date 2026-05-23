@@ -4,7 +4,7 @@ juce_add_plugin(${PROJECT_NAME}
     # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
     # ICON_SMALL ...
     COMPANY_NAME "Roses System"
-    BUNDLE_ID "art.rosemade.s4plugin"
+    BUNDLE_ID "art.rosemade.kittyplugin"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     EDITOR_WANTS_KEYBOARD_FOCUS TRUE
@@ -12,10 +12,10 @@ juce_add_plugin(${PROJECT_NAME}
     PLUGIN_MANUFACTURER_CODE Rose
     PLUGIN_CODE S4pl
     FORMATS AU VST3 Standalone
-    PRODUCT_NAME ${PROJECT_NAME})
+    PRODUCT_NAME "Kitty Advance")
 
 clap_juce_extensions_plugin(TARGET ${PROJECT_NAME}
-    CLAP_ID "art.rosemade.s4plugin"
+    CLAP_ID "art.rosemade.kittyplugin"
     CLAP_FEATURES instrument)
 
 # juce_generate_juce_header(${PROJECT_NAME})
