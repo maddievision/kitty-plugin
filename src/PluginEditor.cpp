@@ -17,6 +17,11 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <format>
+#include <cmath>
+#include <numbers>
+#include "BinaryData.h"
+
+
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
@@ -24,22 +29,32 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     juce::ignoreUnused (processorRef);
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (400, 300);
-    startTimerHz(60);
+
+    vapp.setTitle("Kitty Advance");
+    setSize (800, 600);
+    vapp.onDraw() = [this](visage::Canvas& canvas) {
+        draw(canvas);
+    };
+//     startTimerHz(60);
 }    
 
-AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
-{
-}
-
-//==============================================================================
-void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
-{
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
+void AudioPluginAudioProcessorEditor::draw(visage::Canvas& canvas) {
+    double t = canvas.time();
     
-    g.setColour (juce::Colours::white);
-    g.setFont (15.0f);
+    auto vw = vapp.width();
+    auto vh = vapp.height();
+
+    canvas.setColor(0xFF1F0034);
+    canvas.fill(0, 0, vw, vh);
+    
+//     float circle_radius = vh * 0.1f + (20.0f * std::sin(std::numbers::pi * 2.0f * t));
+//     float x = vapp.width() * 0.5f - circle_radius;
+//     float y = vh * 0.5f - circle_radius;
+//     canvas.setColor(0xff002222);
+//     canvas.circle(x, y, 2.0f * circle_radius);    
+
+    canvas.setColor(0xFFBBBBBB);
+    visage::Font font(16, (const unsigned char*) BinaryData::oaknut_ttf, BinaryData::oaknut_ttfSize);
 
     auto core = processorRef.getCore();    
 
@@ -66,15 +81,47 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
                 totalCgb++;
             }
         }
-        std::string status = std::format("s4a ready!\nVoices: {} / {}\nCGB: {} / 4", totalVoices, vceCount, totalCgb);
-        g.drawFittedText (status.c_str(), getLocalBounds(), juce::Justification::centred, 3);
+        std::string voices = std::format("Voices: {} / {}", totalVoices, vceCount);
+        std::string cgb = std::format("CGB: {} / 4", totalCgb);
+        canvas.setColor(0xFFFAC800);
+        canvas.text(voices, font, visage::Font::kCenter, vw - 120 - 100 - 120, vh - 80, 120, 40);
+        canvas.text(cgb, font, visage::Font::kCenter, vw - 120 - 100 - 120, vh - 80 + 40, 120, 40);
     } else {
-        g.drawFittedText ("s4a initialising...", getLocalBounds(), juce::Justification::centred, 1);        
+        canvas.setColor(0xFFFAC800);
+        canvas.text("initialising…", font, visage::Font::kCenter, vw - 120 - 90 - 120, vh - 80, 120, 80);
     }
+    
+    canvas.setColor(0xFFFAC800);
+    canvas.text("Kitty Advance", font, visage::Font::kCenter, vw - 120, vh - 80, 120, 26);
+    canvas.text("Plugin v0.01", font, visage::Font::kCenter, vw - 120, vh - 80 + 26, 120, 26);
+    canvas.text("Driver v0.01", font, visage::Font::kCenter, vw - 120, vh - 80 + 52, 120, 26);
+
+    canvas.setColor(0xFFFFFFFF);
+    canvas.image((const unsigned char*) BinaryData::kitty_png, BinaryData::kitty_pngSize, vw - 90 - 120, vh - 80, 80, 80);
+    vapp.redraw();
+}
+
+AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
+{
+}
+
+//==============================================================================
+void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
+{
+    g.fillAll(juce::Colour(31U, 0, 52U));
 }
 
 void AudioPluginAudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
+    const auto bounds = getLocalBounds();
+    vapp.setWindowDimensions(bounds.getWidth(), bounds.getHeight());
+}
+
+void AudioPluginAudioProcessorEditor::parentHierarchyChanged() {
+    if (getPeer()) {
+        vapp.show(0, 0, getPeer()->getNativeHandle());
+        triggerAsyncUpdate();
+    }
 }

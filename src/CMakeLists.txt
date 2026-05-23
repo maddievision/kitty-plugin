@@ -18,19 +18,26 @@ clap_juce_extensions_plugin(TARGET ${PROJECT_NAME}
     CLAP_ID "art.rosemade.kittyplugin"
     CLAP_FEATURES instrument)
 
-# juce_generate_juce_header(${PROJECT_NAME})
+if (APPLE)
+  enable_language(OBJC)
+  enable_language(OBJCXX)
+endif ()
 
 target_include_directories(
     ${PROJECT_NAME}
     PRIVATE
     vendor/mgba
+    vendor/visage
 )
 
 set(LIBMGBA_ONLY ON CACHE BOOL "libmgba only")
 add_subdirectory(vendor/mgba)
+add_subdirectory(vendor/visage)
 
 juce_add_binary_data(BinaryData SOURCES
     data/plugin-bridge.gba
+    data/oaknut.ttf
+    data/kitty.png
 )
 
 target_sources(${PROJECT_NAME}
@@ -39,7 +46,6 @@ target_sources(${PROJECT_NAME}
         PluginProcessor.cpp
         ${GbaResources}
     )
-
 
 target_compile_definitions(${PROJECT_NAME}
     PUBLIC
@@ -61,6 +67,7 @@ target_link_libraries(${PROJECT_NAME}
         BinaryData
         juce::juce_audio_utils
         mgba
+        visage
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
